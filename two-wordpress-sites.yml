@@ -1,0 +1,114 @@
+version: '3'
+
+services:
+  mydb:
+    image: "mysql:${MYSQL_VERSION}"
+    container_name: "${DB_HOSTNAME}"
+    hostname: "${DB_HOSTNAME}"
+    ports:
+      - 5506:3306 
+    volumes:
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - ./db_config:/etc/mysql/conf.d
+      - ./db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    networks: 
+      - wordpress-network
+
+  wordpress_alpha:
+    depends_on:
+      - mydb
+    image: wordpress:${WORDPRESS_VERSION}
+    container_name: wordpress_alpha
+    hostname: wordpress_alpha
+    volumes:
+      - ./wordpress_alpha_config/php.conf.ini:/usr/local/etc/php/conf.d/conf.ini
+      - ./wordpress_alpha_www:/var/www/html 
+    ports:
+      - "4000:80"
+    environment:
+      WORDPRESS_DB_HOST: "${DB_HOSTNAME}"
+      WORDPRESS_DB_USER: wordpress_alpha
+      WORDPRESS_DB_PASSWORD: wordpress_alpha
+      WORDPRESS_DB_NAME: wordpress_alpha
+      WORDPRESS_TABLE_PREFIX: alpha_
+      WORDPRESS_DEBUG: 'true'
+    networks: 
+      - wordpress-network
+
+  wpcli_alpha:
+    image: wordpress:cli
+    container_name: wpcli_alpha
+    volumes:
+      - ./wordpress_alpha_config/php.conf.ini:/usr/local/etc/php/conf.d/conf.ini
+      - ./wordpress_alpha_www:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: "${DB_HOSTNAME}"
+      WORDPRESS_DB_NAME: wordpress_alpha
+      WORDPRESS_DB_USER: wordpress_alpha
+      WORDPRESS_DB_PASSWORD: wordpress_alpha
+      WP_CLI_CACHE_DIR: /var/www/html/.wp-cli/cache/
+    depends_on:
+      - mydb
+      - wordpress_alpha
+    networks: 
+      - wordpress-network
+
+  wordpress_beta:
+    depends_on:
+      - mydb
+    image: wordpress:${WORDPRESS_VERSION}
+    container_name: wordpress_beta
+    hostname: wordpress_beta
+    volumes:
+      - ./wordpress_beta_config/php.conf.ini:/usr/local/etc/php/conf.d/conf.ini
+      - ./wordpress_beta_www:/var/www/html 
+    ports:
+      - "5000:80"
+    environment:
+      WORDPRESS_DB_HOST: "${DB_HOSTNAME}"
+      WORDPRESS_DB_USER: wordpress_beta
+      WORDPRESS_DB_PASSWORD: wordpress_beta
+      WORDPRESS_DB_NAME: wordpress_beta
+      WORDPRESS_TABLE_PREFIX: beta_
+      WORDPRESS_DEBUG: 'true'
+      WP_CLI_CACHE_DIR: /var/www/html/.wp-cli/cache/
+    networks: 
+      - wordpress-network
+
+  wpcli_beta:
+    image: wordpress:cli
+    container_name: wpcli_beta
+    volumes:
+      - ./wordpress_beta_config/php.conf.ini:/usr/local/etc/php/conf.d/conf.ini
+      - ./wordpress_beta_www:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: "${DB_HOSTNAME}"
+      WORDPRESS_DB_NAME: wordpress_beta
+      WORDPRESS_DB_USER: wordpress_beta
+      WORDPRESS_DB_PASSWORD: wordpress_beta
+    depends_on:
+      - mydb
+      - wordpress_beta
+    networks: 
+      - wordpress-network
+
+  myadmin:
+    depends_on:
+      - mydb
+    image: phpmyadmin/phpmyadmin
+    container_name: ${PHPMYADMIN_HOSTNAME}
+    hostname: ${PHPMYADMIN_HOSTNAME}
+    environment:
+      PMA_HOST: "${DB_HOSTNAME}"
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
+    ports:
+      - "7070:80"
+    networks: 
+      - wordpress-network
+
+networks:
+  wordpress-network:
+    driver: bridge
